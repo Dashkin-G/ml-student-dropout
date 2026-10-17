@@ -2,8 +2,11 @@
 import math
 
 import pandas as pd
+from fastapi import HTTPException
 
 from src.ml.features import OUTCOMES, STAGES, STAGE_TITLES
+
+MAX_BATCH = 500  # студентов в одном пакетном прогнозе
 
 
 def typical_values(df):
@@ -36,6 +39,31 @@ def predict(bundle, student):
         stages.append({"stage": stage, "title": STAGE_TITLES[stage], "probabilities": p, "outcome": max(p, key=p.get)})
     last = stages[-1]
     return {"stages": stages, "risk": last["probabilities"]["dropout"], "reasons": reasons(bundle, student, last["stage"])}
+
+
+def risk_level(risk):
+    """Уровень риска — как на дашборде: высокий от 50 %, средний от 25 %."""
+    return "high" if risk >= 0.5 else "medium" if risk >= 0.25 else "low"
+
+
+def predict_batch(bundle, students):
+    """Риск группы студентов без причин: студенты собираются по последнему известному этапу,
+    на каждый этап — один вызов predict_proba."""
+    if len(students) > MAX_BATCH:
+        raise HTTPException(status_code=413, detail=f"Не больше {MAX_BATCH} студентов за запрос")
+    last = [known_stages(student)[-1] for student in students]
+    found = []
+    for stage in STAGES:
+        group = [i for i, s in enumerate(last) if s == stage]
+        if not group:
+            continue
+        for i, p in zip(group, probabilities(bundle["stages"][stage], [students[i] for i in group])):
+            found.append({"index": i, "stage": stage, "risk": p["dropout"], "level": risk_level(p["dropout"]),
+                          "outcome": max(p, key=p.get)})
+    found.sort(key=lambda s: s["risk"], reverse=True)
+    levels = {level: sum(s["level"] == level for s in found) for level in ("high", "medium", "low")}
+    return {"count": len(found), "levels": levels, "high_share": round(levels["high"] / len(found), 4),
+            "students": found}
 
 
 def _number(x):

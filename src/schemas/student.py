@@ -8,6 +8,7 @@ from src.ml.features import CATEGORICAL, CODES, SEMESTER_FIELDS, TITLES
 Flag = Literal[0, 1]
 Stage = Literal["enrollment", "semester_1", "semester_2"]
 Outcome = Literal["dropout", "enrolled", "graduate"]
+RiskLevel = Literal["high", "medium", "low"]
 
 # Студент № 2192 из тестовой выборки: при поступлении риск 8 %, после двух несданных семестров — 99 %
 EXAMPLE = {
@@ -118,6 +119,25 @@ class PredictionResponse(BaseModel):
     stages: List[StagePrediction] = Field(description="Прогноз на каждый момент, для которого хватает признаков")
     risk: float = Field(description="Риск отчисления на последний известный момент")
     reasons: List[Reason] = Field(description="До трёх признаков, сильнее всего сдвигающих риск")
+
+
+class BatchRequest(BaseModel):
+    students: List[StudentFeatures] = Field(description="Студенты группы: признаки — как у POST /predict")
+
+
+class BatchStudent(BaseModel):
+    index: int = Field(description="Номер студента в запросе, с нуля")
+    stage: Stage = Field(description="Последний момент, для которого хватает признаков")
+    risk: float = Field(description="Риск отчисления на этот момент")
+    level: RiskLevel = Field(description="Уровень риска: high — от 50 %, medium — 25–50 %, low — до 25 %")
+    outcome: Outcome = Field(description="Самый вероятный исход")
+
+
+class BatchResponse(BaseModel):
+    count: int
+    levels: Dict[RiskLevel, int] = Field(description="Сколько студентов на каждом уровне риска")
+    high_share: float = Field(description="Доля студентов с высоким риском")
+    students: List[BatchStudent] = Field(description="Студенты по убыванию риска")
 
 
 class TrainingConfig(BaseModel):

@@ -73,6 +73,19 @@ def test_predict_validation(client, body, field):
     assert field in response.json()["details"]
 
 
+def test_predict_batch(client):
+    response = client.post("/predict/batch", json={"students": [ENROLLMENT_ONLY, EXAMPLE, WITHOUT_SEM2]})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["count"] == 3 and sum(result["levels"].values()) == 3
+    risks = [s["risk"] for s in result["students"]]
+    assert risks == sorted(risks, reverse=True)
+    # каждый студент — на своём последнем моменте и с тем же риском, что у POST /predict
+    assert {s["index"]: s["stage"] for s in result["students"]} == {0: "enrollment", 1: "semester_2", 2: "semester_1"}
+    single = client.post("/predict", json=EXAMPLE).json()["risk"]
+    assert next(s["risk"] for s in result["students"] if s["index"] == 1) == single
+
+
 def test_students(client):
     examples = client.get("/students/examples").json()
     assert len(examples) == 6
