@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Риск отчисления</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill=%27%231f3366%27/%3E%3Cpath d='M9 22v-5M16 22V10M23 22v-8' stroke='%23fff' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  /* приглушённая светлая тема: белого нет, яркость фона — от 0,36 (вокруг рамки) до 0,84 (поля ввода) */
+  --page: #9aa3af;
+  --frame: #c2c8d0;
+  --frame-line: #848e9c;
+  --card: #dbdfe5;
+  --card-line: #a1aab6;
+  --field: #e9ecef;
+  --line: #b3bbc6;
+  --text: #161e2c;
+  --muted: #424c5e;
+  --navy: #1f3366;
+  --navy-soft: #c6d0e3;
+  --high: #9b1c12; --high-bg: #efcfca; --high-fill: #c0392b;
+  --mid: #733f03;  --mid-bg: #ecd9b4;  --mid-fill: #d08a22;
+  --low: #194a96;  --low-bg: #c8d5ec;  --low-fill: #2f63b8;
+  --edited: #f1dfa0; --edited-line: #a87a14;
+  --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --head: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --num: Bahnschrift, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--text); font: 18px/1.4 var(--ui); }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
+.wrap { max-width: 1520px; margin: 18px auto; padding: 0 20px; }
+/* общая рамка вокруг всего дашборда */
+.frame { background: var(--frame); border: 1px solid var(--frame-line); border-radius: 20px; padding: 18px 24px 24px;
+  box-shadow: 0 14px 40px rgba(16,24,40,.22); }
+
+/* Шапка */
+.top { display: flex; align-items: center; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 12px; position: relative; }
+.brand h1 { margin: 0; font: 600 28px var(--head); }
+.help { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--muted); color: var(--muted);
+  display: grid; place-items: center; font: 600 15px var(--ui); position: relative; outline: none; }
+.help .tip { display: none; position: absolute; top: 38px; left: -12px; width: 460px; z-index: 30; padding: 14px 16px;
+  background: var(--field); border: 1px solid var(--card-line); border-radius: 12px; box-shadow: 0 12px 30px rgba(16,24,40,.25);
+  font: 400 16px/1.45 var(--ui); color: var(--text); }
+.help:hover .tip, .help:focus .tip { display: block; }
+.tip p { margin: 0 0 8px; } .tip p:last-child { margin: 0; }
+.spacer { flex: 1; }
+.chip { padding: 8px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-size: 16px; }
+.chip b { font: 600 18px var(--num); }
+.chip:hover { border-color: var(--navy); }
+.nowrap { white-space: nowrap; }
+.api { color: var(--navy); font-size: 16px; font-weight: 600; text-decoration: none; }
+.api:hover { text-decoration: underline; }
+
+/* Выбор студента */
+.choose { display: flex; align-items: center; gap: 16px; margin: 16px 0; }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; }
+.example { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--card);
+  border-radius: 999px; padding: 6px 14px; font-size: 15.5px; }
+.example::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+.example:hover { border-color: var(--navy); }
+.example.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+.example.on::before { box-shadow: 0 0 0 2px #fff; }
+.find { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 16px; white-space: nowrap; }
+.find input { width: 80px; font: 600 19px var(--num); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 4px 8px; background: var(--card); }
+.find input:focus { outline: 2px solid var(--navy); outline-offset: -1px; }
+.ghost { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 5px 12px; font-size: 15.5px; }
+.ghost:hover { border-color: var(--navy); }
+
+/* Карточки */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px;
+  grid-template-areas: "risk time" "student grades" "student why"; }
+.card { background: var(--card); border: 1px solid var(--card-line); border-radius: 14px; padding: 18px 22px 20px; min-width: 0;
+  box-shadow: 0 1px 3px rgba(16,24,40,.1); }
+.card h2 { margin: 0 0 14px; font: 600 14px var(--ui); letter-spacing: .9px; text-transform: uppercase; color: var(--muted);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.card h2 .hint { margin-left: auto; font-size: 14px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+
+/* Риск */
+.risk-card { grid-area: risk; --lvl: var(--high); --lvl-bg: var(--high-bg); border-left: 6px solid var(--lvl); }
+.risk-card.mid { --lvl: var(--mid); --lvl-bg: var(--mid-bg); }
+.risk-card.low { --lvl: var(--low); --lvl-bg: var(--low-bg); }
+.risk-main { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.risk-main b { font: 600 64px/1 var(--num); color: var(--lvl); font-variant-numeric: tabular-nums; }
+.level { padding: 4px 12px; border-radius: 999px; background: var(--lvl-bg); color: var(--lvl); font-weight: 600; font-size: 16px; }
+.bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--line); }
+.bar i { display: block; height: 100%; transition: width .35s ease; }
+.bar i + i { box-shadow: inset 2px 0 0 var(--card); }
+.bar .dropout { background: var(--high-fill); } .bar .enrolled { background: var(--mid-fill); } .bar .graduate { background: var(--low-fill); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; font-size: 16px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; background: var(--c); }
+.legend b { font: 600 17px var(--num); color: var(--text); }
+.link { border: 0; background: none; padding: 0; margin-top: 12px; color: var(--navy); font-size: 15.5px; font-weight: 600; }
+.link:hover { text-decoration: underline; }
+.link.off { visibility: hidden; }  /* место занято всегда — карточки не прыгают */
+
+/* Когда виден риск */
+.timeline-card { grid-area: time; }
+.timeline { display: grid; grid-template-columns: auto minmax(30px, 1fr) auto minmax(30px, 1fr) auto; align-items: center; gap: 0 12px; margin-top: 12px; }
+.moment { background: transparent; border: 1px solid transparent; border-radius: 12px; padding: 10px 14px; display: grid;
+  grid-template-columns: auto auto; column-gap: 12px; justify-content: start; align-items: center; text-align: left; }
+.moment:hover { border-color: var(--line); }
+.moment.on { border-color: var(--navy); background: var(--navy-soft); }
+.moment .dot { grid-row: span 3; width: 16px; height: 16px; border-radius: 50%; background: var(--c, var(--line)); }
+.moment .t { font-size: 15.5px; color: var(--muted); }
+.moment b { font: 600 32px/1.1 var(--num); color: var(--c, var(--muted)); }
+.moment small { font-size: 14px; color: var(--muted); }
+.moment.future b { font: 400 20px/1.6 var(--ui); }
+.moment.future .dot { background: transparent; border: 2px dashed var(--muted); }
+.timeline .line { height: 2px; background: var(--muted); opacity: .45; }
+.timeline .line.future { background: repeating-linear-gradient(90deg, var(--muted) 0 6px, transparent 6px 12px); }
+
+/* Студент */
+.student-card { grid-area: student; }
+.badge { margin-left: auto; padding: 2px 10px; border-radius: 999px; background: var(--navy-soft); color: var(--navy);
+  font-size: 13px; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.course { font: 600 24px/1.2 var(--head); }
+.meta { color: var(--muted); font-size: 16px; margin: 4px 0 16px; }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; margin: 0 0 16px; }
+.facts dt { color: var(--muted); font-size: 16px; }
+.facts dd { margin: 0; font-size: 17px; font-weight: 600; }
+.facts dd .n { font: 600 19px var(--num); }
+.facts small { color: var(--muted); font-weight: 400; font-size: 14px; }
+.flags { border-top: 1px solid var(--line); }
+.flag { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 9px 0; font-size: 16.5px; }
+.flag:hover .pill { border-color: var(--navy); }
+.pill { min-width: 56px; text-align: center; padding: 2px 12px; border-radius: 999px; border: 1px solid var(--card-line);
+  background: var(--field); font-weight: 600; font-size: 16px; }
+.pill.bad { color: var(--high); background: var(--high-bg); border-color: var(--high-bg); }
+.truth { margin-top: 14px; font-size: 16px; color: var(--muted); }
+.truth b { color: var(--text); }
+.truth .ok { color: var(--low); font-weight: 600; } .truth .miss { color: var(--high); font-weight: 600; }
+
+/* Успеваемость */
+.grades-card { grid-area: grades; }
+.grades { width: 100%; border-collapse: collapse; }
+.grades th { font-size: 14px; font-weight: 400; color: var(--muted); text-align: left; padding: 0 10px 8px; border-bottom: 1px solid var(--line); }
+.grades td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; font-size: 16.5px; }
+.grades tr:last-child td { border-bottom: 0; }
+.grades .n { font: 600 23px var(--num); font-variant-numeric: tabular-nums; }
+.grades tr.future td { color: var(--muted); font-style: italic; }
+.stepper { display: inline-flex; align-items: center; gap: 6px; }
+.step { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--card-line); background: var(--field); color: var(--navy);
+  font: 600 20px/1 var(--ui); display: grid; place-items: center; padding: 0; }
+.step:hover:not(:disabled) { border-color: var(--navy); background: var(--navy-soft); }
+.step:disabled { opacity: .35; }
+.val { min-width: 52px; text-align: center; display: inline-block; padding: 1px 4px; border-radius: 6px; }
+.edited { background: var(--edited); box-shadow: 0 0 0 1px var(--edited-line); }
+.of { font-size: 14px; color: var(--muted); }
+.share { position: relative; height: 10px; border-radius: 5px; background: var(--line); min-width: 120px; }
+.share i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--navy); transition: width .3s ease; }
+.share u { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--text); }
+
+/* Почему */
+.why-card { grid-area: why; }
+.reasons { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.reasons li { border-left: 4px solid var(--high-fill); padding: 2px 0 2px 12px; }
+.reasons li.down { border-left-color: var(--low-fill); }
+.reasons .what { font-size: 17px; font-weight: 600; }
+.reasons .what::before { content: "▲ "; color: var(--high); }
+.reasons li.down .what::before { content: "▼ "; color: var(--low); }
+.reasons small { display: block; margin-top: 3px; font-size: 15px; color: var(--muted); }
+.reasons .none { grid-column: 1 / -1; border: 0; padding: 0; color: var(--muted); }
+
+/* Панель модели */
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 100vw); background: var(--card); z-index: 40;
+  border-left: 1px solid var(--frame-line); box-shadow: -16px 0 40px rgba(16,24,40,.3); padding: 22px 26px; overflow-y: auto; display: none; }
+.drawer.open { display: block; animation: slide .2s ease-out; }
+@keyframes slide { from { transform: translateX(40px); opacity: 0; } }
+.drawer h2 { margin: 0 0 16px; font: 600 24px var(--head); display: flex; justify-content: space-between; align-items: center; }
+.drawer h3 { margin: 22px 0 10px; font: 600 14px var(--ui); letter-spacing: .9px; text-transform: uppercase; color: var(--muted); }
+.close { border: 0; background: transparent; font-size: 28px; line-height: 1; color: var(--muted); }
+.types { display: flex; flex-direction: column; gap: 8px; }
+.type { text-align: left; border: 1px solid var(--card-line); border-radius: 10px; background: var(--field); padding: 9px 14px; font-size: 17px; }
+.type:hover { border-color: var(--navy); }
+.type.on { border-color: var(--navy); background: var(--navy-soft); color: var(--navy); font-weight: 600; }
+.primary { margin-top: 12px; width: 100%; border: 0; border-radius: 10px; padding: 11px; font-size: 18px; font-weight: 600;
+  background: var(--navy); color: #fff; }
+.primary:hover:not(:disabled) { background: #172a55; }
+.primary:disabled { opacity: .6; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.mcard { border: 1px solid var(--card-line); border-radius: 10px; padding: 10px 12px; background: var(--field); }
+.mcard .t { font-size: 14px; color: var(--muted); min-height: 38px; }
+.mcard b { display: block; font: 600 28px/1.15 var(--num); }
+.mcard span { font-size: 14px; color: var(--muted); }
+.history { font-size: 15.5px; }
+.history div { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.history div span:last-child { font-family: var(--num); white-space: nowrap; }
+.toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 50; background: var(--high-bg); color: var(--high);
+  border: 1px solid var(--high); border-radius: 10px; padding: 10px 18px; font-size: 17px; display: none; max-width: 80vw; }
+.toast.show { display: block; }
+
+@media (max-width: 1100px) {
+  .wrap { margin: 8px auto; padding: 0 8px; }
+  .frame { padding: 12px 10px 16px; border-radius: 14px; }
+  .top { flex-wrap: wrap; gap: 10px; }
+  .brand h1 { font-size: 24px; }
+  .spacer { display: none; }
+  .chip { order: 3; width: 100%; }
+  .choose { flex-direction: column; align-items: stretch; gap: 10px; }
+  .examples { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .example { flex: 0 0 auto; }
+  .find { margin-left: 0; }
+  .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "risk" "time" "grades" "student" "why"; }
+  .card { padding: 16px 16px 18px; }
+  .card h2 .hint { margin-left: 0; width: 100%; }
+  .timeline { grid-template-columns: minmax(0, 1fr); gap: 4px; margin-top: 0; }
+  .timeline .line { display: none; }
+  .grades th, .grades td { padding: 8px 3px; }
+  .grades .n { font-size: 20px; }
+  .stepper { gap: 2px; }
+  .step { width: 28px; height: 28px; font-size: 17px; }
+  .val { min-width: 30px; }
+  .of, .share-col { display: none; }
+  .reasons { grid-template-columns: minmax(0, 1fr); }
+  .help .tip { width: min(460px, 86vw); }
+  .cards { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="frame">
+  <header class="top">
+    <div class="brand">
+      <svg width="36" height="36" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1f3366"/><path d="M9 22v-5M16 22V10M23 22v-8" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/></svg>
+      <h1>Риск отчисления</h1>
+      <span class="help" tabindex="0">?<span class="tip">
+        <p><b>Прогноз</b> — три исхода: отчислят, ещё учится, выпустится. Крупно — риск отчисления.</p>
+        <p><b>«Когда виден риск»</b> — прогноз при поступлении, после 1-го и 2-го семестра. Щелчок — прогноз на тот момент.</p>
+        <p><b>Сдано, средний балл, «да / нет»</b> можно менять — прогноз пересчитается. Правки подсвечены.</p>
+        <p><b>Причины</b> — каким был бы риск, если бы признак был как у типичного студента.</p>
+      </span></span>
+    </div>
+    <span class="spacer"></span>
+    <button class="chip" id="modelChip" title="Модель и её качество">Модель: <span id="modelName">—</span> · <span class="nowrap">AUC <b id="modelAuc">—</b></span></button>
+    <a class="api" href="/docs" target="_blank">API</a>
+  </header>
+
+  <nav class="choose">
+    <div class="examples" id="examples"></div>
+    <label class="find">Студент № <input id="findInput" inputmode="numeric" maxlength="4" aria-label="Номер студента">
+      <button class="ghost" id="randomBtn">Случайный</button></label>
+  </nav>
+
+  <main class="grid">
+    <section class="card risk-card" id="riskCard">
+      <h2>Риск отчисления <span class="hint" id="momentName"></span></h2>
+      <div class="risk-main"><b id="risk">—</b><span class="level" id="level">—</span></div>
+      <div class="bar" id="bar"><i class="dropout"></i><i class="enrolled"></i><i class="graduate"></i></div>
+      <div class="legend" id="legend"></div>
+      <button class="link off" id="resetBtn">Изменено вручную — вернуть как было</button>
+    </section>
+
+    <section class="card timeline-card">
+      <h2>Когда виден риск <span class="hint">щелчок — прогноз на этот момент</span></h2>
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <section class="card student-card">
+      <h2><span>Студент № <span id="sid">—</span></span><span class="badge" id="split">—</span></h2>
+      <div class="course" id="course">—</div>
+      <div class="meta" id="meta">&nbsp;</div>
+      <dl class="facts">
+        <dt>Вступительный балл</dt><dd id="admission">—</dd>
+        <dt>Образование до</dt><dd id="previous">—</dd>
+        <dt>Поступление</dt><dd id="mode">—</dd>
+      </dl>
+      <div class="flags">
+        <button class="flag" data-field="tuition_up_to_date" data-bad="0">Обучение оплачено вовремя <span class="pill">—</span></button>
+        <button class="flag" data-field="debtor" data-bad="1">Долг перед вузом <span class="pill">—</span></button>
+        <button class="flag" data-field="scholarship" data-bad="-">Стипендия <span class="pill">—</span></button>
+      </div>
+      <div class="truth" id="truth"></div>
+    </section>
+
+    <section class="card grades-card">
+      <h2>Успеваемость <span class="hint">− / + — «что если»</span></h2>
+      <table class="grades">
+        <thead><tr><th>Семестр</th><th>Записан</th><th>Сдано</th><th>Средний балл</th><th class="share-col">Доля сданных, черта — обычно</th></tr></thead>
+        <tbody id="grades"></tbody>
+      </table>
+    </section>
+
+    <section class="card why-card">
+      <h2>Почему такой риск</h2>
+      <ul class="reasons" id="reasons"></ul>
+    </section>
+  </main>
+</div></div>
+
+<aside class="drawer" id="drawer" aria-label="Модель">
+  <h2>Модель <button class="close" id="closeBtn" aria-label="Закрыть">×</button></h2>
+  <div class="types" id="types"></div>
+  <button class="primary" id="trainBtn">Переобучить</button>
+  <h3>Качество на тестовой выборке</h3>
+  <div class="cards" id="cards"></div>
+  <h3>История обучений</h3>
+  <div class="history" id="history"></div>
+</aside>
+<div class="toast" id="toast"></div>
+
+<script>
+const STAGES = ["enrollment", "semester_1", "semester_2"];
+const STAGE_TITLES = {enrollment: "При поступлении", semester_1: "После 1-го семестра", semester_2: "После 2-го семестра"};
+const OUTCOMES = {dropout: ["отчислят", "var(--high-fill)"], enrolled: ["ещё учится", "var(--mid-fill)"], graduate: ["выпустится", "var(--low-fill)"]};
+const TRUTH = {dropout: "отчислен", enrolled: "ещё учится", graduate: "выпустился"};
+const LEVELS = {high: ["высокий", "var(--high)"], mid: ["средний", "var(--mid)"], low: ["низкий", "var(--low)"]};
+const MODELS = {logreg: "логистическая регрессия", random_forest: "случайный лес", boosting: "градиентный бустинг"};
+const EXAMPLE_COLORS = ["#cf3b2e", "#e0703a", "#3a72cf", "#e2a03f", "#22356b", "#7a57b8"];
+const SEM_FIELDS = ["credited", "enrolled", "evaluations", "approved", "grade", "no_evaluations"];
+
+const $ = id => document.getElementById(id);
+const S = {codes: {}, status: null, record: null, original: null, student: null, stage: "semester_2", result: null, examples: []};
+
+const pct = p => `${Math.round(p * 100)} %`;
+const num = x => Number.isInteger(+x) ? String(x) : (+x).toFixed(1).replace(".", ",");
+const dec = (x, d) => (+x).toFixed(d).replace(".", ",");
+const code = (field, value) => S.codes[field]?.codes?.[value] ?? `код ${value}`;
+const level = p => p >= 0.5 ? "high" : p >= 0.25 ? "mid" : "low";
+const edited = () => Object.keys(S.student).some(k => S.student[k] !== S.original[k]);
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message ? `${data.message}${data.details ? ": " + data.details : ""}` : `HTTP ${res.status}`);
+  return data;
+}
+
+function toast(text) {
+  const t = $("toast");
+  t.textContent = text;
+  t.classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove("show"), 6000);
+}
+
+// ---------- студент ----------
+async function loadStudent(load) {
+  try {
+    const record = await load();
+    S.record = record;
+    S.original = {...record.features};
+    S.student = {...record.features};
+    S.stage = "semester_2";
+    $("findInput").value = record.student_id;
+    document.querySelectorAll(".example").forEach(b => b.classList.toggle("on", +b.dataset.id === record.student_id));
+    renderStudent();
+    await predict();
+  } catch (e) { toast(e.message); }
+}
+
+function renderStudent() {
+  const s = S.student, r = S.record;
+  $("sid").textContent = r.student_id;
+  $("split").textContent = r.split === "test" ? "модель его не видела" : "из обучающей выборки";
+  $("course").textContent = code("course", s.course);
+  $("meta").textContent = `${s.daytime ? "дневная" : "вечерняя"} форма · ${s.age} лет при поступлении`;
+  $("admission").innerHTML = `<span class="n">${num(s.admission_grade)}</span> <small>из 200</small>`;
+  $("previous").textContent = code("previous_qualification", s.previous_qualification);
+  $("mode").textContent = code("application_mode", s.application_mode);
+  document.querySelectorAll(".flag").forEach(button => {
+    const field = button.dataset.field, value = s[field], pill = button.querySelector(".pill");
+    pill.textContent = value ? "да" : "нет";
+    pill.classList.toggle("bad", String(value) === button.dataset.bad);
+    pill.classList.toggle("edited", value !== S.original[field]);
+  });
+  renderGrades();
+  $("resetBtn").classList.toggle("off", !edited());
+}
+
+function renderGrades() {
+  const s = S.student, known = STAGES.indexOf(S.stage), typical = S.status?.typical || {};
+  $("grades").innerHTML = [1, 2].map(n => {
+    if (n > known) return `<tr class="future"><td>${n}-й</td><td colspan="4">ещё не было</td></tr>`;
+    const enrolled = s[`sem${n}_enrolled`], approved = s[`sem${n}_approved`], grade = s[`sem${n}_grade`];
+    const mark = f => s[`sem${n}_${f}`] !== S.original[`sem${n}_${f}`] ? " edited" : "";
+    const share = enrolled ? approved / enrolled : 0, usual = typical[`sem${n}_pass_rate`];
+    return `<tr>
+      <td>${n}-й</td>
+      <td><span class="n">${enrolled}</span></td>
+      <td><span class="stepper">
+        <button class="step" data-sem="${n}" data-f="approved" data-d="-1" ${approved <= 0 ? "disabled" : ""} aria-label="Сдано меньше">−</button>
+        <span class="val n${mark("approved")}">${approved}</span>
+        <button class="step" data-sem="${n}" data-f="approved" data-d="1" ${approved >= enrolled ? "disabled" : ""} aria-label="Сдано больше">+</button>
+      </span></td>
+      <td><span class="stepper">
+        <button class="step" data-sem="${n}" data-f="grade" data-d="-0.5" ${approved === 0 || grade <= 10 ? "disabled" : ""} aria-label="Балл ниже">−</button>
+        <span class="val n${mark("grade")}">${approved === 0 ? "—" : num(Math.round(grade * 10) / 10)}</span>
+        <button class="step" data-sem="${n}" data-f="grade" data-d="0.5" ${approved === 0 || grade >= 20 ? "disabled" : ""} aria-label="Балл выше">+</button>
+      </span> <span class="of">из 20</span></td>
+      <td class="share-col"><div class="share" title="Сдано ${approved} из ${enrolled}">
+        <i style="width:${share * 100}%"></i>${enrolled && usual ? `<u style="left:${usual * 100}%"></u>` : ""}</div></td></tr>`;
+  }).join("");
+}
+
+// ---------- прогноз ----------
+function body() {
+  // семестры позже выбранного момента ещё не наступили — не передаём их
+  const s = {...S.student}, known = STAGES.indexOf(S.stage);
+  for (const n of [1, 2]) if (n > known) for (const f of SEM_FIELDS) s[`sem${n}_${f}`] = null;
+  return s;
+}
+
+async function predict() {
+  try {
+    S.result = await api("/predict", body());
+    renderResult();
+  } catch (e) { toast(e.message); }
+}
+
+let timer;
+const repredict = () => { clearTimeout(timer); timer = setTimeout(predict, 120); };
+
+function renderResult() {
+  const r = S.result, lastStage = r.stages[r.stages.length - 1], last = lastStage.probabilities, lvl = level(r.risk);
+  $("riskCard").className = `card risk-card ${lvl === "high" ? "" : lvl}`;
+  $("risk").textContent = pct(r.risk);
+  $("level").textContent = `${LEVELS[lvl][0]} риск`;
+  $("momentName").textContent = STAGE_TITLES[lastStage.stage].toLowerCase();
+  const bars = $("bar").children;
+  Object.keys(OUTCOMES).forEach((o, i) => bars[i].style.width = `${last[o] * 100}%`);
+  $("legend").innerHTML = Object.entries(OUTCOMES)
+    .map(([o, [title, color]]) => `<span style="--c:${color}">${title} <b>${pct(last[o])}</b></span>`).join("");
+
+  const metrics = S.status?.metrics || {};
+  $("timeline").innerHTML = STAGES.map((stage, i) => {
+    const got = r.stages.find(x => x.stage === stage);
+    const color = got ? LEVELS[level(got.probabilities.dropout)][1] : "";
+    const line = i ? `<span class="line ${got ? "" : "future"}"></span>` : "";
+    return `${line}<button class="moment ${got ? "" : "future"} ${stage === S.stage ? "on" : ""}" data-stage="${stage}" style="${got ? `--c:${color}` : ""}">
+      <span class="dot"></span><span class="t">${STAGE_TITLES[stage]}</span>
+      <b>${got ? pct(got.probabilities.dropout) : "ещё не было"}</b>
+      <small>${metrics[stage] ? `AUC ${dec(metrics[stage].auc_dropout, 2)}` : ""}</small></button>`;
+  }).join("");
+
+  $("reasons").innerHTML = r.reasons.length
+    ? r.reasons.map(x => `<li class="${x.raises_risk ? "" : "down"}"><span class="what">${x.text}</span>
+        <small>${x.typical} → риск был бы ${pct(x.risk_if_typical)}</small></li>`).join("")
+    : `<li class="none">Всё как у типичного студента — особых причин нет</li>`;
+
+  const match = lastStage.outcome === S.record.outcome;
+  $("truth").innerHTML = edited()
+    ? "Изменено вручную — <b>настоящий исход неизвестен</b>"
+    : `В датасете: <b>${TRUTH[S.record.outcome]}</b> · <span class="${match ? "ok" : "miss"}">прогноз ${match ? "совпал" : "не совпал"}</span>`;
+}
+
+// ---------- правки «что если» ----------
+$("grades").addEventListener("click", e => {
+  const b = e.target.closest(".step");
+  if (!b || b.disabled) return;
+  const n = b.dataset.sem, s = S.student, d = +b.dataset.d;
+  if (b.dataset.f === "approved") {
+    const before = s[`sem${n}_approved`];
+    s[`sem${n}_approved`] = before + d;
+    // средний балл есть только у тех, кто что-то сдал
+    if (s[`sem${n}_approved`] === 0) s[`sem${n}_grade`] = 0;
+    if (before === 0) s[`sem${n}_grade`] = S.original[`sem${n}_grade`] || Math.round((S.status?.typical?.[`sem${n}_grade`] ?? 12.5) * 2) / 2;
+  } else {
+    s[`sem${n}_grade`] = Math.min(20, Math.max(10, Math.round((s[`sem${n}_grade`] + d) * 2) / 2));
+  }
+  renderStudent();
+  repredict();
+});
+
+document.querySelectorAll(".flag").forEach(button => button.addEventListener("click", () => {
+  const field = button.dataset.field;
+  S.student[field] = S.student[field] ? 0 : 1;
+  renderStudent();
+  repredict();
+}));
+
+$("timeline").addEventListener("click", e => {
+  const m = e.target.closest(".moment");
+  if (!m) return;
+  S.stage = m.dataset.stage;
+  renderGrades();
+  predict();
+});
+
+$("resetBtn").addEventListener("click", () => {
+  S.student = {...S.original};
+  renderStudent();
+  predict();
+});
+
+// ---------- выбор студента ----------
+function renderExamples() {
+  $("examples").innerHTML = "";
+  S.examples.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.className = "example";
+    b.dataset.id = ex.student_id;
+    b.style.setProperty("--c", EXAMPLE_COLORS[i % EXAMPLE_COLORS.length]);
+    b.textContent = ex.title;
+    b.title = `№ ${ex.student_id} · ${code("course", ex.course)}`;
+    b.addEventListener("click", () => loadStudent(() => api(`/students/${ex.student_id}`)));
+    $("examples").appendChild(b);
+  });
+}
+
+$("findInput").addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.value.trim()) loadStudent(() => api(`/students/${+e.target.value}`));
+});
+$("randomBtn").addEventListener("click", () => loadStudent(() => api("/students/random")));
+
+// ---------- модель ----------
+function renderModel() {
+  const st = S.status;
+  $("modelName").textContent = MODELS[st.model_type];
+  $("modelAuc").textContent = dec(st.metrics.semester_2.auc_dropout, 2);
+  $("types").innerHTML = Object.entries(MODELS)
+    .map(([type, title]) => `<button class="type ${type === (S.chosen || st.model_type) ? "on" : ""}" data-type="${type}">${title}</button>`).join("");
+  $("cards").innerHTML = STAGES.map(stage => {
+    const m = st.metrics[stage];
+    return `<div class="mcard"><div class="t">${STAGE_TITLES[stage]}</div><b>${dec(m.auc_dropout, 2)}</b><span>AUC отчисления</span>
+      <b>${pct(m.accuracy)}</b><span>точность</span></div>`;
+  }).join("");
+}
+
+async function loadHistory() {
+  const rows = await api("/model/metrics?n=6");
+  const when = t => `${t.slice(8, 10)}.${t.slice(5, 7)} ${t.slice(11, 16)}`;
+  $("history").innerHTML = rows.reverse().map(h => `<div><span>${when(h.timestamp)} · ${MODELS[h.model_type]}</span>
+    <span>${STAGES.map(s => dec(h.metrics[s].auc_dropout, 2)).join(" → ")}</span></div>`).join("");
+}
+
+$("types").addEventListener("click", e => {
+  const b = e.target.closest(".type");
+  if (!b) return;
+  S.chosen = b.dataset.type;
+  renderModel();
+});
+
+$("trainBtn").addEventListener("click", async () => {
+  const button = $("trainBtn");
+  button.disabled = true;
+  button.textContent = "Обучаю…";
+  try {
+    await api("/model/train", {model_type: S.chosen || S.status.model_type, hyperparameters: {}});
+    S.status = await api("/model/status");
+    S.chosen = null;
+    renderModel();
+    await loadHistory();
+    S.examples = await api("/students/examples");
+    renderExamples();
+    document.querySelectorAll(".example").forEach(b => b.classList.toggle("on", +b.dataset.id === S.record.student_id));
+    renderGrades();
+    await predict();
+  } catch (e) { toast(e.message); }
+  button.disabled = false;
+  button.textContent = "Переобучить";
+});
+
+$("modelChip").addEventListener("click", () => { $("drawer").classList.add("open"); loadHistory().catch(e => toast(e.message)); });
+$("closeBtn").addEventListener("click", () => $("drawer").classList.remove("open"));
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("drawer").classList.remove("open"); });
+
+// ---------- старт ----------
+(async () => {
+  try {
+    [S.codes, S.status] = await Promise.all([api("/dataset/codes"), api("/model/status")]);
+    if (!S.status.trained) { toast("Модель не обучена: откройте «Модель» и нажмите «Переобучить»"); return; }
+    renderModel();
+    S.examples = await api("/students/examples");
+    renderExamples();
+    const id = +new URLSearchParams(location.search).get("student") || S.examples[0].student_id;
+    await loadStudent(() => api(`/students/${id}`));
+  } catch (e) { toast(`Сервер не отвечает: ${e.message}`); }
+})();
+</script>
+</body>
+</html>
