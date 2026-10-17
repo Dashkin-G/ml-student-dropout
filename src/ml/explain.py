@@ -38,6 +38,30 @@ def predict(bundle, student):
     return {"stages": stages, "risk": last["probabilities"]["dropout"], "reasons": reasons(bundle, student, last["stage"])}
 
 
+def risk_level(risk):
+    """Уровень риска — как на дашборде: высокий от 50 %, средний от 25 %."""
+    return "high" if risk >= 0.5 else "medium" if risk >= 0.25 else "low"
+
+
+def predict_batch(bundle, students):
+    """Риск группы студентов без причин: студенты собираются по последнему известному этапу,
+    на каждый этап — один вызов predict_proba."""
+    last = [known_stages(student)[-1] for student in students]
+    found = []
+    for stage in STAGES:
+        group = [i for i, s in enumerate(last) if s == stage]
+        if not group:
+            continue
+        for i, p in zip(group, probabilities(bundle["stages"][stage], [students[i] for i in group])):
+            found.append({"index": i, "stage": stage, "risk": p["dropout"], "level": risk_level(p["dropout"]),
+                          "outcome": max(p, key=p.get)})
+    found.sort(key=lambda s: s["risk"], reverse=True)
+    levels = {level: sum(s["level"] == level for s in found) for level in ("high", "medium", "low")}
+    # пустой список API не пропустит, но функцию зовут и из скриптов
+    high_share = round(levels["high"] / len(found), 4) if found else 0.0
+    return {"count": len(found), "levels": levels, "high_share": high_share, "students": found}
+
+
 def _number(x):
     return f"{x:.0f}" if float(x).is_integer() else f"{x:.1f}".replace(".", ",")
 

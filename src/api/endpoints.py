@@ -8,7 +8,8 @@ from fastapi import APIRouter, HTTPException, Query
 from src.ml import explain, model
 from src.ml.dataset import DATA_PATH, SOURCE, load_dataset
 from src.ml.features import CODES, EXCLUDED, OUTCOME_TITLES, OUTCOMES, STAGE_TITLES, STAGES, TITLES
-from src.schemas.student import Example, PredictionResponse, StudentFeatures, StudentRecord, TrainingConfig
+from src.schemas.student import (BatchRequest, BatchResponse, Example, PredictionResponse, StudentFeatures,
+                                 StudentRecord, TrainingConfig)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -94,6 +95,14 @@ async def student(student_id: int):
 async def predict(student: StudentFeatures):
     result = explain.predict(current_model(), student.model_dump())
     logger.info("Прогноз: %s, риск %.2f", result["stages"][-1]["stage"], result["risk"])
+    return result
+
+
+@router.post("/predict/batch", response_model=BatchResponse)
+async def predict_batch(batch: BatchRequest):
+    """Риск группы студентов по убыванию — без причин; причины одного студента — POST /predict."""
+    result = explain.predict_batch(current_model(), [student.model_dump() for student in batch.students])
+    logger.info("Пакетный прогноз: %d студентов, высокий риск у %d", result["count"], result["levels"]["high"])
     return result
 
 
