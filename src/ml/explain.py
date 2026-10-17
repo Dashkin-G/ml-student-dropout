@@ -2,11 +2,8 @@
 import math
 
 import pandas as pd
-from fastapi import HTTPException
 
 from src.ml.features import OUTCOMES, STAGES, STAGE_TITLES
-
-MAX_BATCH = 500  # студентов в одном пакетном прогнозе
 
 
 def typical_values(df):
@@ -49,8 +46,6 @@ def risk_level(risk):
 def predict_batch(bundle, students):
     """Риск группы студентов без причин: студенты собираются по последнему известному этапу,
     на каждый этап — один вызов predict_proba."""
-    if len(students) > MAX_BATCH:
-        raise HTTPException(status_code=413, detail=f"Не больше {MAX_BATCH} студентов за запрос")
     last = [known_stages(student)[-1] for student in students]
     found = []
     for stage in STAGES:
@@ -62,8 +57,9 @@ def predict_batch(bundle, students):
                           "outcome": max(p, key=p.get)})
     found.sort(key=lambda s: s["risk"], reverse=True)
     levels = {level: sum(s["level"] == level for s in found) for level in ("high", "medium", "low")}
-    return {"count": len(found), "levels": levels, "high_share": round(levels["high"] / len(found), 4),
-            "students": found}
+    # пустой список API не пропустит, но функцию зовут и из скриптов
+    high_share = round(levels["high"] / len(found), 4) if found else 0.0
+    return {"count": len(found), "levels": levels, "high_share": high_share, "students": found}
 
 
 def _number(x):

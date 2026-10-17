@@ -86,6 +86,13 @@ def test_predict_batch(client):
     assert next(s["risk"] for s in result["students"] if s["index"] == 1) == single
 
 
+@pytest.mark.parametrize("students", [[], [EXAMPLE] * 501])
+def test_predict_batch_size(client, students):
+    response = client.post("/predict/batch", json={"students": students})
+    assert response.status_code == 422
+    assert "students" in response.json()["details"]
+
+
 def test_students(client):
     examples = client.get("/students/examples").json()
     assert len(examples) == 6

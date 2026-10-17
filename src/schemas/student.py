@@ -121,8 +121,12 @@ class PredictionResponse(BaseModel):
     reasons: List[Reason] = Field(description="До трёх признаков, сильнее всего сдвигающих риск")
 
 
+MAX_BATCH = 500  # студентов в одном пакетном прогнозе
+
+
 class BatchRequest(BaseModel):
-    students: List[StudentFeatures] = Field(description="Студенты группы: признаки — как у POST /predict")
+    students: List[StudentFeatures] = Field(min_length=1, max_length=MAX_BATCH,
+                                            description=f"Студенты группы, от 1 до {MAX_BATCH}: признаки — как у POST /predict")
 
 
 class BatchStudent(BaseModel):
